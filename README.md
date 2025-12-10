@@ -1,4 +1,8 @@
-# GIM: Gradient-based Interpretability Method
+<p align="center">
+  <img src="assets/logo.png" alt="GIM Logo" width="300">
+</p>
+
+# GIM: Gradient Interaction Modifications
 
 GIM provides gradient modifications that improve feature attribution quality for transformer-based language models.
 

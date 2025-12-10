@@ -31,6 +31,8 @@ tlens = [
 dev = [
     "pytest>=7.0",
     "transformer-lens>=2.0.0",
+    "build>=1.0",
+    "twine>=5.0",
 ]
 
 [project.urls]
