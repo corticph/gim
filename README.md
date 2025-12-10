@@ -1,6 +1,8 @@
-# GIM: Gradient-based Interpretability Method
+<img width="1024" height="416" alt="image (1)" src="https://github.com/user-attachments/assets/27a614df-78b2-4d98-b13c-a71e4ad3dd80" />
 
-GIM provides gradient modifications that improve feature attribution quality for transformer-based language models.
+
+This repository contains code for easily implementing [GIM (Gradient Interaction Modifications)](https://arxiv.org/abs/2505.17630). GIM can be used as either a feature-attribution method (also called a saliency map) or a circuit-discovery method. It achieves state-of-the-art performances on both tasks, while being as efficient as standard gradients. Notably, it is at the top of the Mechanistic Interpretability Benchmark. Check out the leaderboard [here](https://huggingface.co/spaces/mib-bench/leaderboard). 
+
 
 ## Installation
 
@@ -30,7 +32,7 @@ attributions = gim.explain(model, input_ids, tokenizer=tokenizer)
 
 ### Using the GIM Context Manager
 
-For more control, use the `GIM` context manager directly:
+For more control, use the `GIM` context manager directly. This is useful if you want to use GIM for circuit discovery or network pruning. You wrap the model and run your gradient-based method as usual (e.g., [Edge Attribution Patching](https://github.com/hannamw/EAP-IG/tree/7af394a5662de8b23ad6154716a0cd3993d447a3)). The wrapper will automatically modify the backpropagation. 
 
 ```python
 import gim
@@ -51,7 +53,7 @@ GIM applies three gradient modifications during backpropagation:
 2. **Softmax Temperature**: Applies temperature scaling to softmax gradients (softer attention)
 3. **Q/K/V Scaling**: Scales gradients for query, key, and value tensors in attention
 
-These modifications improve the quality of gradient-based feature attributions.
+As shown in the paper, these modifications improve the quality of gradient-based feature attributions.
 
 ## API Reference
 
@@ -88,6 +90,18 @@ with gim.GIM(
 ):
     # Your forward/backward code here
     pass
+```
+## Citation
+```bibtex
+@misc{edin2025gimimprovedinterpretabilitylarge,
+      title={GIM: Improved Interpretability for Large Language Models}, 
+      author={Joakim Edin and Róbert Csordás and Tuukka Ruotsalo and Zhengxuan Wu and Maria Maistro and Casper L. Christensen and Jing Huang and Lars Maaløe},
+      year={2025},
+      eprint={2505.17630},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL},
+      url={https://arxiv.org/abs/2505.17630}, 
+}
 ```
 
 ## License
