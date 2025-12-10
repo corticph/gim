@@ -9,10 +9,10 @@ GIM provides gradient modifications that improve feature attribution quality for
 ## Installation
 
 ```bash
-pip install gim
+pip install gim-explain
 
 # With TransformerLens support
-pip install gim[tlens]
+pip install gim-explain[tlens]
 ```
 
 ## Quick Start
