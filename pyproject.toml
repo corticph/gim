@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "gim"
+name = "gim-explain"
 version = "0.1.0"
 description = "Gradient-based Interpretability Method for transformer feature attribution"
 readme = "README.md"
@@ -31,8 +31,6 @@ tlens = [
 dev = [
     "pytest>=7.0",
     "transformer-lens>=2.0.0",
-    "build>=1.0",
-    "twine>=5.0",
 ]
 
 [project.urls]
