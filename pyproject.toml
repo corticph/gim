@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gim-explain"
-version = "0.1.0"
+version = "0.1.2"
 description = "Gradient-based Interpretability Method for transformer feature attribution"
 readme = "README.md"
 license = {text = "MIT"}
@@ -22,6 +22,7 @@ classifiers = [
 ]
 dependencies = [
     "torch>=2.0",
+    "numpy>=1.20",
 ]
 
 [project.optional-dependencies]

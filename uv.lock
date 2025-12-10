@@ -557,9 +557,10 @@ http = [
 
 [[package]]
 name = "gim-explain"
-version = "0.1.0"
+version = "0.1.2"
 source = { editable = "." }
 dependencies = [
+    { name = "numpy" },
     { name = "torch" },
 ]
 
@@ -574,6 +575,7 @@ tlens = [
 
 [package.metadata]
 requires-dist = [
+    { name = "numpy", specifier = ">=1.20" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
     { name = "torch", specifier = ">=2.0" },
     { name = "transformer-lens", marker = "extra == 'dev'", specifier = ">=2.0.0" },
