@@ -2,6 +2,10 @@
   <img src="https://raw.githubusercontent.com/corticph/gim/main/assets/logo.png" alt="GIM Logo" width="300">
 </p>
 
+![Python Version](https://img.shields.io/pypi/pyversions/gim-explain)
+![PyPI](https://img.shields.io/pypi/v/gim-explain)
+![License](https://img.shields.io/github/license/corticph/gim)
+
 # GIM: Gradient Interaction Modifications
 
 
