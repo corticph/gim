@@ -1,7 +1,8 @@
-<img width="1024" height="416" alt="image (1)" src="https://github.com/user-attachments/assets/27a614df-78b2-4d98-b13c-a71e4ad3dd80" />
+<p align="center">
+  <img src="assets/logo.png" alt="GIM Logo" width="300">
+</p>
 
-
-This repository contains code for easily implementing [GIM (Gradient Interaction Modifications)](https://arxiv.org/abs/2505.17630). GIM can be used as either a feature-attribution method (also called a saliency map) or a circuit-discovery method. It achieves state-of-the-art performances on both tasks, while being as efficient as standard gradients. Notably, it is at the top of the Mechanistic Interpretability Benchmark. Check out the leaderboard [here](https://huggingface.co/spaces/mib-bench/leaderboard). 
+# GIM: Gradient Interaction Modifications
 
 
 ## Installation
