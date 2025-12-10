@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo.png" alt="GIM Logo" width="300">
+  <img src="https://raw.githubusercontent.com/corticph/gim/main/assets/logo.png" alt="GIM Logo" width="300">
 </p>
 
 # GIM: Gradient Interaction Modifications

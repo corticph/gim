@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gim-explain"
-version = "0.1.2"
+version = "0.1.4"
 description = "Gradient-based Interpretability Method for transformer feature attribution"
 readme = "README.md"
 license = {text = "MIT"}
@@ -32,6 +32,8 @@ tlens = [
 dev = [
     "pytest>=7.0",
     "transformer-lens>=2.0.0",
+    "build>=1.0",
+    "twine>=5.0",
 ]
 
 [project.urls]
