@@ -145,6 +145,8 @@ def explain(
     q_scale: Optional[float] = 0.25,
     k_scale: Optional[float] = 0.25,
     v_scale: Optional[float] = 0.5,
+    gate_scale: Optional[float] = 0.5,
+    up_scale: Optional[float] = 0.5,
 ) -> torch.Tensor:
     """
     Compute feature attributions for model inference using GIM gradient modifications.
@@ -161,6 +163,7 @@ def explain(
         freeze_norm: If True, detach LayerNorm/RMSNorm statistics during backward.
         softmax_temperature: Temperature for softmax backward pass (default: 2.0).
         q_scale, k_scale, v_scale: Gradient multipliers for attention Q/K/V.
+        gate_scale, up_scale: Gradient multipliers for gated MLP gate/up branches.
 
     Returns:
         torch.Tensor: Feature importance scores of shape [seq_len].
@@ -197,6 +200,8 @@ def explain(
         "q_scale": q_scale,
         "k_scale": k_scale,
         "v_scale": v_scale,
+        "gate_scale": gate_scale,
+        "up_scale": up_scale,
     }
 
     # Dispatch based on model type

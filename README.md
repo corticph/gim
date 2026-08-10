@@ -57,8 +57,11 @@ GIM applies three gradient modifications during backpropagation:
 1. **Norm Freezing**: Detaches LayerNorm/RMSNorm statistics from the backward pass
 2. **Softmax Temperature**: Applies temperature scaling to softmax gradients (softer attention)
 3. **Q/K/V Scaling**: Scales gradients for query, key, and value tensors in attention
+4. **MLP Gate Scaling**: Scales gradients for the gate and up-projection branches of gated MLP blocks (SwiGLU/GeGLU), at the point where they're multiplied together
 
 As shown in the paper, these modifications improve the quality of gradient-based feature attributions.
+
+MLP gate scaling supports the standard `gate_proj`/`up_proj` convention (Llama, Mistral, Gemma, Qwen2, and most modern open decoder LLMs), Phi3-style fused `gate_up_proj`, and Mixtral-style MoE experts. If a model has a gated MLP that doesn't match a known convention, GIM raises an error instead of silently skipping the correction — pass `gate_scale=None, up_scale=None` to opt out explicitly.
 
 ## API Reference
 
@@ -78,6 +81,8 @@ gim.explain(
     q_scale=0.25,                   # Query gradient scale
     k_scale=0.25,                   # Key gradient scale
     v_scale=0.5,                    # Value gradient scale
+    gate_scale=0.5,                 # Gated-MLP gate-branch gradient scale
+    up_scale=0.5,                   # Gated-MLP up-branch gradient scale
 )
 ```
 
@@ -92,6 +97,8 @@ with gim.GIM(
     q_scale=0.25,
     k_scale=0.25,
     v_scale=0.5,
+    gate_scale=0.5,
+    up_scale=0.5,
 ):
     # Your forward/backward code here
     pass
