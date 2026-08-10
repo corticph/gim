@@ -105,6 +105,59 @@ with gim.GIM(
     # Your forward/backward code here
     pass
 ```
+## Adding Support for a New Model
+
+Most models need **no code changes**. GIM's PyTorch path patches `F.scaled_dot_product_attention` (so any model using it gets Q/K/V scaling automatically) and detects gated MLPs generically by looking for `gate_proj`/`up_proj` attributes (so any model using that naming convention gets gate/up scaling automatically too). Its TransformerLens path works the same way via hook names, for any model built through `HookedTransformer`.
+
+You only need to add something when GIM raises one of these errors:
+
+- `GIM found gate-like Linear layer(s) it doesn't know how to apply the gate/up gradient-scaling rule to: ...` — a PyTorch/HuggingFace model whose gated MLP doesn't use the standard `gate_proj`/`up_proj` naming.
+- `GIM found an MLP module '...' of type '...' that it doesn't recognize.` — a TransformerLens model using an MLP class GIM hasn't seen.
+
+Both live in `src/gim/context/mlp.py`. GIM raises rather than silently skipping the correction because applying half the correction (or none) would look identical to correct behavior while being wrong — so treat these errors as "please add this architecture," not as something to suppress.
+
+### PyTorch / HuggingFace: fused gate+up projection
+
+If the model computes the gate and up branches from a single fused `nn.Linear` and splits the output (like Phi3's `gate_up_proj`), add it to `_FUSED_GATE_UP_CLASSES`:
+
+```python
+_FUSED_GATE_UP_CLASSES = {
+    "Phi3MLP": {"attr": "gate_up_proj", "dim": -1, "order": ("gate", "up")},
+    "NewModelMLP": {"attr": "gate_up_proj", "dim": -1, "order": ("gate", "up")},  # add here
+}
+```
+
+Read the model's actual `forward()` to confirm the attribute name, the `chunk()` dimension, and which half is gate vs. up — getting `order` backwards silently swaps the two scales.
+
+### PyTorch / HuggingFace: MoE experts with non-standard names
+
+If each MoE expert uses different attribute names for gate/up/down (like Mixtral's `w1`/`w2`/`w3`), add it to `_MOE_EXPERT_TRIPLE_CLASSES`:
+
+```python
+_MOE_EXPERT_TRIPLE_CLASSES = {
+    "MixtralBlockSparseTop2MLP": {"gate": "w1", "up": "w3", "down": "w2"},
+    "NewMoeExpertMLP": {"gate": "w1", "up": "w3", "down": "w2"},  # add here
+}
+```
+
+### TransformerLens: a new MLP class
+
+If TransformerLens adds a new MLP class (check `transformer_lens/factories/mlp_factory.py` for the full list it can construct), add its class name to the matching set in `mlp.py`:
+
+- `_TLENS_KNOWN_PLAIN_MLP_CLASSES` if it isn't gated at all.
+- `_TLENS_KNOWN_GATED_MLP_CLASSES` if it exposes `hook_pre`/`hook_pre_linear` like `GatedMLP`.
+- `_TLENS_KNOWN_MOE_CLASSES` / `_TLENS_KNOWN_MOE_EXPERT_CLASSES` if it's an MoE wrapper/expert like `MoE`/`MoEGatedMLP`.
+
+If its hook names or roles differ from the existing classes, you'll also need a new branch in `_tlens_gate_up_scales`'s `fwd_hooks` list.
+
+### Test it
+
+Add a case to `tests/test_mlp_gate_architectures.py` using a tiny, randomly-initialized config (no downloads). Compare the gate/up gradients on the **last** layer with vs. without `GIM(..., gate_scale=..., up_scale=...)` — an earlier layer's gradient is a blend with later layers' unscaled residual skip-connections, so only the last layer's gradient is an exact multiple of the baseline (see comments in that file for why).
+
+### A note on attention
+
+Unlike the gate/up path, GIM's Q/K/V scaling has no equivalent safety net: it only works if the model calls `F.scaled_dot_product_attention` (PyTorch) or exposes `hook_q`/`hook_k`/`hook_v` (TransformerLens). A model using a custom attention kernel (e.g. calling FlashAttention or xFormers directly) will silently *not* get Q/K/V scaling. If you're adding support for such a model, check whether its attention path is actually being patched before trusting the results.
+
 ## Citation
 ```bibtex
 @misc{edin2025gimimprovedinterpretabilitylarge,
