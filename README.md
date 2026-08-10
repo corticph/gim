@@ -52,7 +52,7 @@ with gim.GIM(model):
 
 ## How It Works
 
-GIM applies three gradient modifications during backpropagation:
+GIM applies four gradient modifications during backpropagation:
 
 1. **Norm Freezing**: Detaches LayerNorm/RMSNorm statistics from the backward pass
 2. **Softmax Temperature**: Applies temperature scaling to softmax gradients (softer attention)
@@ -62,6 +62,8 @@ GIM applies three gradient modifications during backpropagation:
 As shown in the paper, these modifications improve the quality of gradient-based feature attributions.
 
 MLP gate scaling supports the standard `gate_proj`/`up_proj` convention (Llama, Mistral, Gemma, Qwen2, and most modern open decoder LLMs), Phi3-style fused `gate_up_proj`, and Mixtral-style MoE experts. If a model has a gated MLP that doesn't match a known convention, GIM raises an error instead of silently skipping the correction — pass `gate_scale=None, up_scale=None` to opt out explicitly.
+
+> **Note:** Releases up to and including `0.1.4` had a bug where this MLP gate/up scaling was never implemented — only the Q/K/V attention scaling was applied. On any gated-MLP model (Llama, Mistral, Gemma, Qwen2, Mixtral, Phi3, etc.), this meant `gate_proj`/`up_proj` (and equivalents) gradients were left unscaled. If you computed attributions with an earlier version on a gated-MLP model, consider recomputing them with this fix applied.
 
 ## API Reference
 

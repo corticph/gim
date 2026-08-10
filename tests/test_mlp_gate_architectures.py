@@ -260,10 +260,8 @@ def test_non_gated_control_no_error_and_noop():
     assert torch.allclose(mlp_grad_no_gim, mlp_grad_with_gate_scale, rtol=1e-4)
 
 
-tlens = pytest.importorskip("transformer_lens")
-
-
 def test_tlens_gated_mlp_scaled():
+    pytest.importorskip("transformer_lens")
     from transformer_lens import HookedTransformer, HookedTransformerConfig
 
     cfg = HookedTransformerConfig(
@@ -297,6 +295,7 @@ def test_tlens_gated_mlp_scaled():
 
 
 def test_tlens_moe_gate_up_scaled():
+    pytest.importorskip("transformer_lens")
     from transformer_lens import HookedTransformer, HookedTransformerConfig
 
     cfg = HookedTransformerConfig(
@@ -334,6 +333,7 @@ def test_tlens_moe_gate_up_scaled():
 
 
 def test_tlens_unrecognized_mlp_class_raises(monkeypatch):
+    pytest.importorskip("transformer_lens")
     from transformer_lens import HookedTransformer, HookedTransformerConfig
     from gim.context import mlp as gim_mlp
 

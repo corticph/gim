@@ -9,7 +9,8 @@ multiplied, halve the gradient flowing back through each operand.
 Covers several known conventions:
   - The standard ``gate_proj``/``up_proj`` pair (Llama, Mistral, Gemma, Qwen2,
     and most modern open decoder LLMs) - detected generically by attribute
-    shape, so new models reusing this convention need no code changes here.
+    name and ``nn.Linear`` type (no class-name allowlist), so new models
+    reusing this convention need no code changes here.
   - Fused ``gate_up_proj`` + ``chunk(2)`` (Phi3-style).
   - MoE expert gate/up/down triples with non-standard names (Mixtral-style).
 
