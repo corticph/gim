@@ -65,6 +65,174 @@ class TestGradientScaling:
         assert torch.allclose(x.grad, expected_grad)
 
 
+class _GateProjMLP(torch.nn.Module):
+    """Minimal SwiGLU-style gated MLP using the standard gate_proj/up_proj convention."""
+
+    def __init__(self, d_model=8, d_hidden=12):
+        super().__init__()
+        self.gate_proj = torch.nn.Linear(d_model, d_hidden, bias=False)
+        self.up_proj = torch.nn.Linear(d_model, d_hidden, bias=False)
+        self.down_proj = torch.nn.Linear(d_hidden, d_model, bias=False)
+
+    def forward(self, x):
+        return self.down_proj(F.silu(self.gate_proj(x)) * self.up_proj(x))
+
+
+class Phi3MLP(torch.nn.Module):
+    """Minimal fused gate_up_proj MLP, matching the registered Phi3MLP convention."""
+
+    def __init__(self, d_model=8, d_hidden=12):
+        super().__init__()
+        self.gate_up_proj = torch.nn.Linear(d_model, 2 * d_hidden, bias=False)
+        self.down_proj = torch.nn.Linear(d_hidden, d_model, bias=False)
+
+    def forward(self, x):
+        gate, up = self.gate_up_proj(x).chunk(2, dim=-1)
+        return self.down_proj(F.silu(gate) * up)
+
+
+class WeirdGatedMLP(torch.nn.Module):
+    """An MLP with an unrecognized gating convention (not in any known registry)."""
+
+    def __init__(self, d_model=8, d_hidden=12):
+        super().__init__()
+        self.my_gate = torch.nn.Linear(d_model, d_hidden, bias=False)
+        self.my_up = torch.nn.Linear(d_model, d_hidden, bias=False)
+        self.down_proj = torch.nn.Linear(d_hidden, d_model, bias=False)
+
+    def forward(self, x):
+        return self.down_proj(F.silu(self.my_gate(x)) * self.my_up(x))
+
+
+class PlainMLP(torch.nn.Module):
+    """An ordinary, non-gated MLP (no "gate" anywhere)."""
+
+    def __init__(self, d_model=8, d_hidden=12):
+        super().__init__()
+        self.fc1 = torch.nn.Linear(d_model, d_hidden)
+        self.fc2 = torch.nn.Linear(d_hidden, d_model)
+
+    def forward(self, x):
+        return self.fc2(F.gelu(self.fc1(x)))
+
+
+class TestMLPGateScaling:
+    """Tests for gated-MLP gate/up gradient scaling."""
+
+    def test_gate_up_pair_forward_unchanged(self):
+        from gim.context.mlp import _patch_gate_up_grad_scales
+
+        torch.manual_seed(0)
+        mlp = _GateProjMLP()
+        x = torch.randn(2, 5, 8)
+        y_before = mlp(x)
+        with _patch_gate_up_grad_scales(mlp, gate_scale=0.5, up_scale=0.5):
+            y_after = mlp(x)
+        assert torch.equal(y_before, y_after)
+
+    def test_gate_up_pair_backward_scaled(self):
+        from gim.context.mlp import _patch_gate_up_grad_scales
+
+        torch.manual_seed(0)
+        mlp = _GateProjMLP()
+        x = torch.randn(2, 5, 8)
+
+        mlp.zero_grad(set_to_none=True)
+        mlp(x).sum().backward()
+        gate_grad_base = mlp.gate_proj.weight.grad.clone()
+        up_grad_base = mlp.up_proj.weight.grad.clone()
+
+        mlp.zero_grad(set_to_none=True)
+        with _patch_gate_up_grad_scales(mlp, gate_scale=0.5, up_scale=0.25):
+            mlp(x).sum().backward()
+
+        assert torch.allclose(mlp.gate_proj.weight.grad, 0.5 * gate_grad_base, atol=1e-6)
+        assert torch.allclose(mlp.up_proj.weight.grad, 0.25 * up_grad_base, atol=1e-6)
+
+    def test_gate_up_pair_hooks_removed_on_exit(self):
+        from gim.context.mlp import _patch_gate_up_grad_scales
+
+        torch.manual_seed(0)
+        mlp = _GateProjMLP()
+        x = torch.randn(2, 5, 8)
+
+        with _patch_gate_up_grad_scales(mlp, gate_scale=0.5, up_scale=0.5):
+            pass
+
+        assert len(mlp.gate_proj._forward_hooks) == 0
+        assert len(mlp.up_proj._forward_hooks) == 0
+
+        mlp.zero_grad(set_to_none=True)
+        mlp(x).sum().backward()
+        grad_no_patch_1 = mlp.gate_proj.weight.grad.clone()
+
+        mlp.zero_grad(set_to_none=True)
+        mlp(x).sum().backward()
+        grad_no_patch_2 = mlp.gate_proj.weight.grad.clone()
+
+        assert torch.allclose(grad_no_patch_1, grad_no_patch_2, atol=1e-6)
+
+    def test_fused_gate_up_backward_scaled(self):
+        from gim.context.mlp import _patch_gate_up_grad_scales
+
+        torch.manual_seed(0)
+        mlp = Phi3MLP()
+        x = torch.randn(2, 5, 8)
+
+        mlp.zero_grad(set_to_none=True)
+        mlp(x).sum().backward()
+        fused_grad_base = mlp.gate_up_proj.weight.grad.clone()
+        d_hidden = fused_grad_base.shape[0] // 2
+        gate_grad_base, up_grad_base = fused_grad_base[:d_hidden], fused_grad_base[d_hidden:]
+
+        mlp.zero_grad(set_to_none=True)
+        with _patch_gate_up_grad_scales(mlp, gate_scale=0.1, up_scale=0.9):
+            mlp(x).sum().backward()
+
+        fused_grad_patched = mlp.gate_up_proj.weight.grad.clone()
+        gate_grad_patched = fused_grad_patched[:d_hidden]
+        up_grad_patched = fused_grad_patched[d_hidden:]
+
+        assert torch.allclose(gate_grad_patched, 0.1 * gate_grad_base, atol=1e-6)
+        assert torch.allclose(up_grad_patched, 0.9 * up_grad_base, atol=1e-6)
+
+    def test_unrecognized_gate_raises(self):
+        from gim.context.mlp import _patch_gate_up_grad_scales
+
+        mlp = WeirdGatedMLP()
+        with pytest.raises(RuntimeError, match="gate-like"):
+            with _patch_gate_up_grad_scales(mlp, gate_scale=0.5, up_scale=0.5):
+                pass
+
+    def test_unrecognized_gate_bypassed_via_gim_none(self):
+        from gim import GIM
+
+        mlp = WeirdGatedMLP()
+        x = torch.randn(2, 5, 8)
+        with GIM(mlp, freeze_norm=False, softmax_temperature=None,
+                 q_scale=None, k_scale=None, v_scale=None,
+                 gate_scale=None, up_scale=None):
+            mlp(x).sum().backward()
+        assert mlp.my_gate.weight.grad is not None
+
+    def test_plain_mlp_is_noop(self):
+        from gim.context.mlp import _patch_gate_up_grad_scales
+
+        torch.manual_seed(0)
+        mlp = PlainMLP()
+        x = torch.randn(2, 5, 8)
+
+        mlp.zero_grad(set_to_none=True)
+        mlp(x).sum().backward()
+        grad_base = mlp.fc1.weight.grad.clone()
+
+        mlp.zero_grad(set_to_none=True)
+        with _patch_gate_up_grad_scales(mlp, gate_scale=0.5, up_scale=0.5):
+            mlp(x).sum().backward()
+
+        assert torch.allclose(mlp.fc1.weight.grad, grad_base, atol=1e-6)
+
+
 class TestNormDetach:
     """Tests for norm detaching."""
 
